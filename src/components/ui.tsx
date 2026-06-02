@@ -459,7 +459,7 @@ export function BottomNav({ P, active, onNav, onStart }: any) {
     { id: "history", icon: "chart" }, { id: "settings", icon: "user" },
   ];
   return (
-    <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, display: "flex", justifyContent: "center", paddingBottom: 12, paddingTop: 6, pointerEvents: "none", zIndex: 60 }}>
+    <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, display: "flex", justifyContent: "center", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))", paddingTop: 6, pointerEvents: "none", zIndex: 60 }}>
       <div style={{ pointerEvents: "auto", display: "flex", alignItems: "center", gap: 3, background: P.darkCard, borderRadius: 9999, padding: "8px 10px", boxShadow: "0 12px 30px rgba(10,8,20,0.3), inset 0 1px 0 rgba(255,255,255,0.05)" }}>
         {tabs.map((t: any) => {
           if (t.center) {

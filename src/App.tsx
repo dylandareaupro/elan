@@ -710,10 +710,25 @@ function App() {
     openCoach: () => setShowCoach(true), switchPlan,
   };
 
+  // On a real phone (or once installed as a PWA) drop the iPhone mock frame and
+  // go edge-to-edge; keep the framed + scaled mock on larger screens.
+  const isBare = () => typeof window !== "undefined" && (
+    window.matchMedia("(max-width: 600px)").matches ||
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (window.navigator as any).standalone === true
+  );
+  const [bare, setBare] = React.useState(isBare);
   const [scale, setScale] = React.useState(1);
   React.useEffect(() => {
-    const fit = () => setScale(Math.min(window.innerWidth / 402, window.innerHeight / 874, 1.15));
-    fit(); window.addEventListener("resize", fit); return () => window.removeEventListener("resize", fit);
+    const fit = () => {
+      setBare(isBare());
+      setScale(Math.min(window.innerWidth / 402, window.innerHeight / 874, 1.15));
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    const mq = window.matchMedia("(display-mode: standalone)");
+    mq.addEventListener?.("change", fit);
+    return () => { window.removeEventListener("resize", fit); mq.removeEventListener?.("change", fit); };
   }, []);
 
   let Screen = HomeScreen;
@@ -727,21 +742,33 @@ function App() {
   const navScreens = ["home", "programs", "history", "settings"];
   const showNav = !needOnboarding && loaded && navScreens.includes(screen);
 
+  const inner = (
+    <div style={{ position: "relative", height: "100%", fontFamily }}>
+      <div className="vp-app" style={{ height: "100%", overflowY: "auto", overflowX: "hidden", background: P.bg, fontFamily }}>
+        {!loaded ? (
+          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: P.muted }}>
+            <div style={{ width: 40, height: 40, borderRadius: 9999, border: `3px solid ${P.borderStrong}`, borderTopColor: P.actionDeep, animation: "vp-spin .8s linear infinite" }} />
+          </div>
+        ) : needOnboarding ? <OnboardingFlow P={P} onDone={adoptPlan} /> : <Screen {...ctx} />}
+      </div>
+      {showNav && <BottomNav P={P} active={screen} onNav={(id: string) => ctx.go(id)} onStart={startSession} />}
+      {showCoach && <CoachSheet P={P} profile={profile} plans={plans} onClose={() => setShowCoach(false)} onCreate={(plan: Plan) => adoptPlan(null, plan)} />}
+    </div>
+  );
+
+  // edge-to-edge on phone / installed PWA
+  if (bare) {
+    return (
+      <div style={{ position: "fixed", inset: 0, width: "100%", height: "100dvh", background: P.bg, color: P.ink, fontFamily, overflow: "hidden" }}>
+        {inner}
+      </div>
+    );
+  }
+
+  // framed iPhone mock on larger screens
   return (
     <div style={{ transform: `scale(${scale})`, transformOrigin: "center center", fontFamily }}>
-      <IOSDevice width={402} height={874}>
-        <div style={{ position: "relative", height: "100%", fontFamily }}>
-          <div className="vp-app" style={{ height: "100%", overflowY: "auto", overflowX: "hidden", background: P.bg, fontFamily }}>
-            {!loaded ? (
-              <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: P.muted }}>
-                <div style={{ width: 40, height: 40, borderRadius: 9999, border: `3px solid ${P.borderStrong}`, borderTopColor: P.actionDeep, animation: "vp-spin .8s linear infinite" }} />
-              </div>
-            ) : needOnboarding ? <OnboardingFlow P={P} onDone={adoptPlan} /> : <Screen {...ctx} />}
-          </div>
-          {showNav && <BottomNav P={P} active={screen} onNav={(id: string) => ctx.go(id)} onStart={startSession} />}
-          {showCoach && <CoachSheet P={P} profile={profile} plans={plans} onClose={() => setShowCoach(false)} onCreate={(plan: Plan) => adoptPlan(null, plan)} />}
-        </div>
-      </IOSDevice>
+      <IOSDevice width={402} height={874}>{inner}</IOSDevice>
     </div>
   );
 }
