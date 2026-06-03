@@ -17,6 +17,8 @@ import { ExerciseFigure } from "./components/ExerciseFigure";
 import { ImageSlot } from "./components/ImageSlot";
 import { IOSDevice } from "./components/IOSDevice";
 import { OnboardingFlow, CoachSheet } from "./components/coach/Coach";
+import { Splash } from "./components/Splash";
+import { AnimatePresence } from "framer-motion";
 import {
   RoundBtn, Eyebrow, IconBadge, Pill, CTA, GhostBtn, Card, WeekStrip,
   DonutRing, RingTimer, AreaChart, SegBar, Toggle, Tabs, ActivityRow, PillCalendar, Heatmap,
@@ -719,6 +721,11 @@ function App() {
   );
   const [bare, setBare] = React.useState(isBare);
   const [scale, setScale] = React.useState(1);
+  const [showSplash, setShowSplash] = React.useState(true);
+  React.useEffect(() => {
+    const t = setTimeout(() => setShowSplash(false), 1900);
+    return () => clearTimeout(t);
+  }, []);
   React.useEffect(() => {
     const fit = () => {
       setBare(isBare());
@@ -756,20 +763,22 @@ function App() {
     </div>
   );
 
-  // edge-to-edge on phone / installed PWA
-  if (bare) {
-    return (
-      <div style={{ position: "fixed", inset: 0, width: "100%", height: "100dvh", background: P.bg, color: P.ink, fontFamily, overflow: "hidden" }}>
-        {inner}
-      </div>
-    );
-  }
-
-  // framed iPhone mock on larger screens
-  return (
+  // edge-to-edge on phone / installed PWA, framed iPhone mock on larger screens
+  const app = bare ? (
+    <div style={{ position: "fixed", inset: 0, width: "100%", height: "100dvh", background: P.bg, color: P.ink, fontFamily, overflow: "hidden" }}>
+      {inner}
+    </div>
+  ) : (
     <div style={{ transform: `scale(${scale})`, transformOrigin: "center center", fontFamily }}>
       <IOSDevice width={402} height={874}>{inner}</IOSDevice>
     </div>
+  );
+
+  return (
+    <>
+      {app}
+      <AnimatePresence>{showSplash && <Splash key="splash" P={P} />}</AnimatePresence>
+    </>
   );
 }
 
