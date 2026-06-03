@@ -293,7 +293,7 @@ export function SegBar({ total, filledTo, current, P, color }: any) {
 export function Toggle({ value, onChange, label, icon, P }: any) {
   return (
     <button onClick={() => onChange(!value)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px", background: P.surface, borderRadius: 22, border: `1px solid ${P.border}`, boxShadow: SOFT_SHADOW }}>
-      <span style={{ display: "flex", alignItems: "center", gap: 13, color: P.ink, fontSize: 15.5, fontWeight: 600 }}>
+      <span style={{ display: "flex", alignItems: "center", gap: 13, color: P.ink, fontSize: 15.5, fontWeight: 800 }}>
         <IconBadge icon={icon} P={P} tone="soft" size={34} />
         <span style={{ whiteSpace: "nowrap" }}>{label}</span>
       </span>

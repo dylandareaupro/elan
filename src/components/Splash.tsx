@@ -34,7 +34,7 @@ export function Splash({ P }: { P: Palette }) {
         animate={{ scale: 1, opacity: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 220, damping: 16, delay: 0.1 }}
         style={{
-          width: 104, height: 104, borderRadius: 30, position: "relative",
+          width: 124, height: 124, borderRadius: 36, position: "relative",
           background: "linear-gradient(150deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.06) 100%)",
           border: "1px solid rgba(255,255,255,0.35)",
           display: "flex", alignItems: "center", justifyContent: "center",
@@ -43,7 +43,7 @@ export function Splash({ P }: { P: Palette }) {
         }}
       >
         <motion.svg
-          width={56} height={56} viewBox="0 0 100 100" aria-hidden="true"
+          width={70} height={70} viewBox="0 0 100 100" aria-hidden="true"
           initial={{ scale: 0.8, rotate: -8 }}
           animate={{ scale: 1, rotate: 0 }}
           transition={{ type: "spring", stiffness: 260, damping: 14, delay: 0.18 }}

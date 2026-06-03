@@ -297,7 +297,7 @@ function WelcomeScreen({ P, onStart }: { P: Palette; onStart: () => void }) {
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, position: "relative" }}>
         <motion.div initial={{ scale: 0.7, opacity: 0, y: 8 }} animate={{ scale: 1, opacity: 1, y: 0 }} transition={{ duration: 0.55, ease }}>
-          <LogoMark P={P} size={104} radius={30} />
+          <LogoMark P={P} size={140} radius={40} />
         </motion.div>
         <motion.h1 className="vp-display" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease, delay: 0.16 }}
           style={{ margin: "26px 0 0", fontSize: 56, lineHeight: 0.96, letterSpacing: "-0.03em" }}>Élan</motion.h1>

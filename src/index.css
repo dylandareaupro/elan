@@ -12,7 +12,7 @@ body {
 
 ::-webkit-scrollbar { width: 0; height: 0; }
 .vp-app { scrollbar-width: none; }
-button { font-family: inherit; cursor: pointer; border: none; background: none; }
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; -webkit-appearance: none; appearance: none; }
 input, textarea { font-family: inherit; }
 
 .mono { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }

@@ -204,11 +204,19 @@ function ProgramsScreen(c: any) {
             return (
               <div key={pl.id} style={{ background: P.surface, borderRadius: 26, border: `1.5px solid ${on ? P.primaryDeep : P.border}`, boxShadow: CARD_SHADOW, overflow: "hidden" }}>
                 <div style={{ padding: "18px 18px 14px", background: on ? P.primary : P.surface, color: on ? "#fff" : P.ink, position: "relative", overflow: "hidden" }}>
-                  {illustration === "photo" ? (
-                    <div style={{ position: "absolute", right: 14, top: 14, width: 76, height: 76, borderRadius: 16, overflow: "hidden", background: "#FFFFFF", border: `1px solid ${P.border}`, boxShadow: "0 4px 12px rgba(0,0,0,0.14)" }}>
-                      <ImageSlot id={exSlug(pl.exercises[0].name)} shape="rect" fit="contain" />
-                    </div>
-                  ) : (on && <div style={{ position: "absolute", right: -10, top: 12, width: 96, height: 88, opacity: 0.85 }}><ExerciseFigure id={figureForName(pl.exercises[0].name)} color="#fff" /></div>)}
+                  {(() => {
+                    const pho = photoForName(pl.exercises[0].name);
+                    if (illustration === "photo") {
+                      return (
+                        <div style={{ position: "absolute", right: 14, top: 14, width: 76, height: 76, borderRadius: 16, overflow: "hidden", background: "#FFFFFF", border: `1px solid ${P.border}`, boxShadow: "0 4px 12px rgba(0,0,0,0.14)" }}>
+                          {pho
+                            ? <img src={pho} alt={pl.exercises[0].name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                            : <ImageSlot id={exSlug(pl.exercises[0].name)} shape="rect" fit="contain" />}
+                        </div>
+                      );
+                    }
+                    return on && <div style={{ position: "absolute", right: -10, top: 12, width: 96, height: 88, opacity: 0.85 }}><ExerciseFigure id={figureForName(pl.exercises[0].name)} color="#fff" /></div>;
+                  })()}
                   <div style={{ position: "relative", maxWidth: 220 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       {on && <Pill P={P} tone="surface" style={{ fontSize: 11, padding: "4px 10px" }}>Actif</Pill>}
@@ -474,7 +482,7 @@ function HistoryScreen(c: any) {
                     <span style={{ display: "flex", alignItems: "center", gap: 12 }}>
                       <IconBadge icon="check" P={P} tone="success" size={32} />
                       <div>
-                        <div style={{ fontSize: 14.5, fontWeight: 700, textTransform: "capitalize" }}>{new Date(s.date).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}</div>
+                        <div style={{ fontSize: 14.5, fontWeight: 800, textTransform: "capitalize", color: P.ink }}>{new Date(s.date).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}</div>
                         {s.plan && <div style={{ fontSize: 11.5, fontWeight: 600, color: P.muted }}>{s.plan}</div>}
                       </div>
                     </span>
@@ -549,15 +557,15 @@ function SettingsScreen(c: any) {
           <Eyebrow P={P}>Apparence</Eyebrow>
           <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 14 }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: P.text2, marginBottom: 8 }}>Palette</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: P.ink, marginBottom: 8 }}>Palette</div>
               <Segmented P={P} value={prefs.paletteName} options={["Clair", "Crème", "Brume"]} onChange={(v: string) => setPref("paletteName", v)} />
             </div>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: P.text2, marginBottom: 8 }}>Illustrations</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: P.ink, marginBottom: 8 }}>Illustrations</div>
               <Segmented P={P} value={prefs.illus} options={["Photo", "Line art"]} onChange={(v: string) => setPref("illus", v)} />
             </div>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: P.text2, marginBottom: 8 }}>Calendrier</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: P.ink, marginBottom: 8 }}>Calendrier</div>
               <Segmented P={P} value={prefs.calName} options={["Pills", "Heatmap"]} onChange={(v: string) => setPref("calName", v)} />
             </div>
           </div>
