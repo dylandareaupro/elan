@@ -86,9 +86,9 @@ function ProfileStep({ P, profile, setField, onNext }: any) {
 export function PlanPreview({ plan, P, onAdopt, onRefine, compact }: { plan: Plan; P: Palette; onAdopt: (p: Plan) => void; onRefine: () => void; compact?: boolean }) {
   return (
     <div style={{ background: P.surface, borderRadius: 24, border: `1px solid ${P.border}`, boxShadow: CARD_SHADOW, overflow: "hidden" }}>
-      <div style={{ background: P.info, padding: "18px 18px 16px", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", right: -16, bottom: -14, width: 120, height: 110, opacity: 0.95 }}>{photoForName(plan.exercises[0].name) ? <img src={photoForName(plan.exercises[0].name)!} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "right bottom" }} /> : <ExerciseFigure id={figureForName(plan.exercises[0].name)} color={P.figure} />}</div>
-        <Eyebrow P={P} color={P.onInfo} style={{ opacity: 0.7 }}>Programme proposé</Eyebrow>
+      <div style={{ background: P.primary, color: "#fff", padding: "18px 18px 16px", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", right: -16, bottom: -14, width: 120, height: 110, opacity: 0.95 }}>{photoForName(plan.exercises[0].name) ? <img src={photoForName(plan.exercises[0].name)!} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "right bottom" }} /> : <ExerciseFigure id={figureForName(plan.exercises[0].name)} color="#fff" />}</div>
+        <Eyebrow P={P} color="rgba(255,255,255,0.75)">Programme proposé</Eyebrow>
         <div style={{ fontSize: 23, fontWeight: 800, letterSpacing: "-0.02em", marginTop: 5, maxWidth: 220 }}>{plan.title}</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
           {plan.focusZones.slice(0, 3).map((z) => <Pill key={z} P={P} tone="surface" style={{ fontSize: 11.5, padding: "5px 11px" }}>{z}</Pill>)}
