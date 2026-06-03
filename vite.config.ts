@@ -14,7 +14,7 @@ export default defineConfig({
         description:
           "Ton coach fitness personnalisé : un programme sur mesure généré pour ton objectif, des séances guidées au timer.",
         lang: "fr",
-        theme_color: "#5A45DC",
+        theme_color: "#F2F1F6",
         background_color: "#F2F1F6",
         display: "standalone",
         orientation: "portrait",
