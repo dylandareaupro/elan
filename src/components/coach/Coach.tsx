@@ -4,8 +4,10 @@
    local coach (engine.localCoachTurn) with a simulated typing delay.
    ============================================================ */
 import React from "react";
+import { motion } from "framer-motion";
 import { Icon } from "../Icon";
 import { ExerciseFigure } from "../ExerciseFigure";
+import { LogoMark } from "../Logo";
 import {
   localCoachTurn, fallbackSuggestions, figureForName, photoForName,
   SUGGESTIONS, type Plan, type Profile, type Palette, type CoachMode, type CoachTurn,
@@ -274,18 +276,73 @@ function CoachChat({ P, profile, onAdopt, autofocusTitle, mode = "plan", plans =
   );
 }
 
-/* ---------- onboarding flow (profile → chat) ---------- */
+/* ---------- intro / splash ---------- */
+function WelcomeScreen({ P, onStart }: { P: Palette; onStart: () => void }) {
+  const features = [
+    { icon: "boltF", text: "Un programme généré pour ton objectif" },
+    { icon: "clock", text: "Séances courtes, guidées au timer" },
+    { icon: "chart", text: "Ta progression, jour après jour" },
+  ];
+  const ease = [0.22, 0.61, 0.36, 1] as const;
+  return (
+    <div style={{
+      position: "relative", minHeight: "100%", height: "100%", color: P.ink,
+      background: `radial-gradient(120% 80% at 50% -8%, ${P.primarySoft} 0%, ${P.bg} 52%, ${P.bg} 100%)`,
+      display: "flex", flexDirection: "column", alignItems: "center",
+      padding: "calc(72px + env(safe-area-inset-top, 0px)) 28px calc(30px + env(safe-area-inset-bottom, 0px))",
+      textAlign: "center", overflow: "hidden",
+    }}>
+      {/* soft brand orb */}
+      <div style={{ position: "absolute", top: -120, left: "50%", transform: "translateX(-50%)", width: 360, height: 360, borderRadius: 9999, background: `radial-gradient(circle, ${P.primary}33, transparent 68%)`, pointerEvents: "none" }} />
+
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, position: "relative" }}>
+        <motion.div initial={{ scale: 0.7, opacity: 0, y: 8 }} animate={{ scale: 1, opacity: 1, y: 0 }} transition={{ duration: 0.55, ease }}>
+          <LogoMark P={P} size={104} radius={30} />
+        </motion.div>
+        <motion.h1 className="vp-display" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease, delay: 0.16 }}
+          style={{ margin: "26px 0 0", fontSize: 44, lineHeight: 0.96, letterSpacing: "-0.03em" }}>Ventre plat</motion.h1>
+        <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease, delay: 0.26 }}
+          style={{ margin: "12px 0 0", fontSize: 16, fontWeight: 600, color: P.text2, maxWidth: 280, lineHeight: 1.5 }}>
+          Ton coach personnel. Décris ton objectif, l'app crée le programme qui te ressemble.
+        </motion.p>
+
+        <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease, delay: 0.38 }}
+          style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 30, width: "100%", maxWidth: 320 }}>
+          {features.map((f) => (
+            <div key={f.text} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: P.surface, borderRadius: 18, border: `1px solid ${P.border}`, boxShadow: SOFT_SHADOW, textAlign: "left" }}>
+              <span style={{ width: 34, height: 34, borderRadius: 9999, flexShrink: 0, background: P.primarySoft, color: P.primaryDeep, display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name={f.icon} size={17} /></span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: P.ink }}>{f.text}</span>
+            </div>
+          ))}
+        </motion.div>
+      </div>
+
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease, delay: 0.5 }} style={{ width: "100%", maxWidth: 360 }}>
+        <CTA P={P} ctaStyle="peach" icon="arrowR" onClick={onStart}>Commencer</CTA>
+        <p style={{ margin: "14px 0 0", fontSize: 12.5, fontWeight: 600, color: P.muted }}>Sans compte · 100&nbsp;% sur ton téléphone</p>
+      </motion.div>
+    </div>
+  );
+}
+
+/* ---------- onboarding flow (intro → profile → chat) ---------- */
 export function OnboardingFlow({ P, onDone }: { P: Palette; onDone: (profile: Profile, plan: Plan) => void }) {
-  const [step, setStep] = React.useState(0);
+  const [step, setStep] = React.useState<"welcome" | "profile" | "chat">("welcome");
   const [profile, setProfile] = React.useState<Profile>({ age: "30", height: "180", weight: "70", sex: "Homme", level: "Intermédiaire", frequency: 4 });
   const setField = (k: string, v: any) => setProfile((p) => ({ ...p, [k]: v }));
+
+  if (step === "welcome") return <WelcomeScreen P={P} onStart={() => setStep("profile")} />;
+
   return (
-    <div style={{ minHeight: "100%", background: P.bg, color: P.ink, padding: "58px 20px 26px", display: "flex", flexDirection: "column" }}>
-      {step === 0 ? (
-        <ProfileStep P={P} profile={profile} setField={setField} onNext={() => { if (profile.age && profile.height && profile.weight) setStep(1); }} />
+    <div style={{ minHeight: "100%", background: P.bg, color: P.ink, padding: "calc(58px + env(safe-area-inset-top, 0px)) 20px calc(26px + env(safe-area-inset-bottom, 0px))", display: "flex", flexDirection: "column" }}>
+      {step === "profile" ? (
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+          <button onClick={() => setStep("welcome")} style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 6, color: P.text2, fontSize: 13.5, fontWeight: 700, marginBottom: 14 }}><Icon name="chevL" size={16} /> Intro</button>
+          <ProfileStep P={P} profile={profile} setField={setField} onNext={() => { if (profile.age && profile.height && profile.weight) setStep("chat"); }} />
+        </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-          <button onClick={() => setStep(0)} style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 6, color: P.text2, fontSize: 13.5, fontWeight: 700, marginBottom: 14 }}><Icon name="chevL" size={16} /> Profil</button>
+          <button onClick={() => setStep("profile")} style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 6, color: P.text2, fontSize: 13.5, fontWeight: 700, marginBottom: 14 }}><Icon name="chevL" size={16} /> Profil</button>
           <CoachChat P={P} profile={profile} autofocusTitle onAdopt={(plan: Plan) => onDone(profile, plan)} />
         </div>
       )}
