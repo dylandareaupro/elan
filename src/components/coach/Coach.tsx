@@ -300,7 +300,7 @@ function WelcomeScreen({ P, onStart }: { P: Palette; onStart: () => void }) {
           <LogoMark P={P} size={104} radius={30} />
         </motion.div>
         <motion.h1 className="vp-display" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease, delay: 0.16 }}
-          style={{ margin: "26px 0 0", fontSize: 44, lineHeight: 0.96, letterSpacing: "-0.03em" }}>Ventre plat</motion.h1>
+          style={{ margin: "26px 0 0", fontSize: 56, lineHeight: 0.96, letterSpacing: "-0.03em" }}>Élan</motion.h1>
         <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease, delay: 0.26 }}
           style={{ margin: "12px 0 0", fontSize: 16, fontWeight: 600, color: P.text2, maxWidth: 280, lineHeight: 1.5 }}>
           Ton coach personnel. Décris ton objectif, l'app crée le programme qui te ressemble.

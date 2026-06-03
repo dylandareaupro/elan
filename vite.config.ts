@@ -9,10 +9,10 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["assets/coach.png", "assets/exercises/*.png"],
       manifest: {
-        name: "Ventre plat — Coach fitness",
-        short_name: "Ventre plat",
+        name: "Élan — Coach IA fitness",
+        short_name: "Élan",
         description:
-          "Ton coach fitness personnalisé : un programme sur mesure généré pour ton objectif, des séances guidées au timer.",
+          "Garde l'élan. Le coach IA qui génère un programme 100 % personnalisé selon ton objectif — séances courtes guidées au timer et à la voix.",
         lang: "fr",
         theme_color: "#F2F1F6",
         background_color: "#F2F1F6",
