@@ -18,6 +18,7 @@ import { ImageSlot } from "./components/ImageSlot";
 import { IOSDevice } from "./components/IOSDevice";
 import { OnboardingFlow, CoachSheet } from "./components/coach/Coach";
 import { Splash } from "./components/Splash";
+import { enableReminders, disableReminders, pushSupported, isStandalone, type Reminder } from "./lib/push";
 import { AnimatePresence } from "framer-motion";
 import {
   RoundBtn, Eyebrow, IconBadge, Pill, CTA, GhostBtn, Card, WeekStrip,
@@ -555,6 +556,82 @@ function Segmented({ value, options, onChange, P }: any) {
   );
 }
 
+/* Workout reminders — Web Push subscription + day/time picker */
+const REM_DAYS: [string, string][] = [["Mon", "L"], ["Tue", "M"], ["Wed", "M"], ["Thu", "J"], ["Fri", "V"], ["Sat", "S"], ["Sun", "D"]];
+function RemindersPanel({ P, settings, setSetting }: any) {
+  const days: string[] = settings.reminderDays || ["Mon", "Wed", "Fri"];
+  const time: string = settings.reminderTime || "18:00";
+  const on: boolean = !!settings.reminderOn;
+  const [busy, setBusy] = React.useState(false);
+  const [msg, setMsg] = React.useState<string>("");
+  const supported = pushSupported();
+  const iosNeedsInstall = !isStandalone() && /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+  async function sync(nextDays: string[], nextTime: string) {
+    setBusy(true); setMsg("");
+    try {
+      await enableReminders({ days: nextDays, time: nextTime } as Reminder);
+      setSetting("reminderOn", true);
+      setMsg("Rappels activés ✓");
+    } catch (e: any) {
+      setSetting("reminderOn", false);
+      if (e?.message === "denied") setMsg("Notifications refusées. Autorise-les dans les réglages iPhone.");
+      else if (e?.message === "unsupported") setMsg("Push non supporté sur ce navigateur.");
+      else if (e?.message === "server") setMsg("Stockage non configuré côté serveur (voir setup).");
+      else setMsg("Impossible d'activer les rappels.");
+    } finally { setBusy(false); }
+  }
+
+  async function toggle(v: boolean) {
+    if (v) {
+      if (iosNeedsInstall) { setMsg("Ajoute d'abord l'app à l'écran d'accueil (Partager → Sur l'écran d'accueil), puis rouvre-la."); return; }
+      await sync(days, time);
+    } else {
+      setBusy(true);
+      try { await disableReminders(); } catch { /* ignore */ }
+      setSetting("reminderOn", false); setMsg(""); setBusy(false);
+    }
+  }
+  function toggleDay(code: string) {
+    const next = days.includes(code) ? days.filter((d) => d !== code) : [...days, code];
+    setSetting("reminderDays", next);
+    if (on) sync(next, time);
+  }
+  function setTime(t: string) { setSetting("reminderTime", t); if (on) sync(days, t); }
+
+  return (
+    <div style={{ marginTop: 26 }}>
+      <Eyebrow P={P}>Rappels</Eyebrow>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
+        <Toggle P={P} icon="bell" label="Rappels de séance" value={on} onChange={toggle} />
+        {!supported && <p style={{ fontSize: 12, color: P.muted, margin: "0 4px", lineHeight: 1.45 }}>Notifications non supportées par ce navigateur.</p>}
+        {supported && (
+          <>
+            <div style={{ display: "flex", gap: 6 }}>
+              {REM_DAYS.map(([code, label]) => {
+                const sel = days.includes(code);
+                return (
+                  <button key={code} onClick={() => toggleDay(code)} disabled={busy}
+                    style={{ flex: 1, aspectRatio: "1", borderRadius: 14, fontSize: 14, fontWeight: 800, background: sel ? P.primaryDeep : P.tint, color: sel ? "#fff" : P.text2, border: "none", transition: "background .15s" }}>
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: P.surface, borderRadius: 16, padding: "12px 16px", border: `1px solid ${P.border}` }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: P.ink }}>Heure du rappel</span>
+              <input type="time" value={time} disabled={busy} onChange={(e) => setTime(e.target.value)}
+                style={{ fontSize: 16, fontWeight: 800, color: P.primaryDeep, background: P.tint, border: "none", borderRadius: 10, padding: "6px 10px", fontFamily: "inherit" }} />
+            </div>
+            {iosNeedsInstall && <p style={{ fontSize: 12, color: P.accentDeep || P.muted, margin: "0 4px", lineHeight: 1.45 }}>📲 Sur iPhone : ajoute l'app à l'écran d'accueil pour recevoir les notifications.</p>}
+            {msg && <p style={{ fontSize: 12, color: P.muted, margin: "0 4px", lineHeight: 1.45 }}>{msg}</p>}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ============================== SETTINGS / PROFIL ============================== */
 function SettingsScreen(c: any) {
   const { P, settings, week, profile, prefs, setPref } = c;
@@ -597,6 +674,8 @@ function SettingsScreen(c: any) {
             Auto : les exercices s'enchaînent après une pause de 3 s. Désactive pour lancer chaque exercice à la main.
           </p>
         </div>
+
+        <RemindersPanel P={P} settings={settings} setSetting={c.setSetting} />
 
         {/* in-app appearance (replaces the prototype Tweaks panel) */}
         <div style={{ marginTop: 26 }}>

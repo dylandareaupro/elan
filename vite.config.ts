@@ -30,6 +30,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // pull the push/notification handlers into the generated SW
+        importScripts: ["push-sw.js"],
         // exercise photos are large — cache them at runtime instead of precaching
         globPatterns: ["**/*.{js,css,html,svg,woff,woff2}"],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,

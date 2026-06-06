@@ -54,6 +54,9 @@ export interface Settings {
   sound: boolean;
   autoAdvance: boolean;
   currentWeek: number;
+  reminderOn?: boolean;
+  reminderDays?: string[]; // ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+  reminderTime?: string;   // "HH:MM"
 }
 export type Palette = Record<string, string>;
 
@@ -75,7 +78,7 @@ export const WEEKS: WeekSpec[] = [
   { week: 4, duration: 45, rest: 20, rounds: 3, label: "Performance" },
 ];
 
-export const DEFAULT_SETTINGS: Settings = { voice: true, vibration: true, sound: true, autoAdvance: true, currentWeek: 1 };
+export const DEFAULT_SETTINGS: Settings = { voice: true, vibration: true, sound: true, autoAdvance: true, currentWeek: 1, reminderOn: false, reminderDays: ["Mon", "Wed", "Fri"], reminderTime: "18:00" };
 
 /* ---------- Palettes ---------- */
 export const PALETTES: Record<string, Palette> = {
