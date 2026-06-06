@@ -175,13 +175,46 @@ export function weekActivity(sessions: Session[]) {
 export const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
 /* ---------- Voice / beep / vibrate ---------- */
+// Known French FEMALE voices across Apple / Microsoft / Google, and male names to avoid.
+const FR_FEMALE_HINTS = ["aurélie", "aurelie", "audrey", "amélie", "amelie", "marie", "julie", "léa", "lea", "chloé", "chloe", "virginie", "céline", "celine", "denise", "hortense", "eloise", "éloise", "vivienne", "brigitte", "coralie", "jacqueline", "josephine", "joséphine", "yvette", "charline"];
+const FR_MALE_HINTS = ["thomas", "daniel", "nicolas", "henri", "claude", "alain", "paul", "mathieu", "jérôme", "jerome", "maurice", "yves", "guillaume"];
+
+let _voice: SpeechSynthesisVoice | null = null;
+let _voiceTried = false;
+function pickFrenchFemaleVoice(): SpeechSynthesisVoice | null {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
+  const voices = window.speechSynthesis.getVoices();
+  const fr = voices.filter((v) => /^fr/i.test(v.lang));
+  if (!fr.length) return null;
+  const isMale = (v: SpeechSynthesisVoice) => FR_MALE_HINTS.some((h) => v.name.toLowerCase().includes(h));
+  const isFemale = (v: SpeechSynthesisVoice) => FR_FEMALE_HINTS.some((h) => v.name.toLowerCase().includes(h));
+  // prefer a named female voice, ideally an "enhanced/premium" one
+  const femaleEnhanced = fr.find((v) => isFemale(v) && /enhanced|premium|siri|natural/i.test(v.name));
+  const female = fr.find((v) => isFemale(v));
+  const notMale = fr.find((v) => !isMale(v));
+  return femaleEnhanced || female || notMale || fr[0];
+}
+function ensureVoice() {
+  if (_voice || _voiceTried) return;
+  _voice = pickFrenchFemaleVoice();
+  if (_voice) _voiceTried = true;
+}
+if (typeof window !== "undefined" && "speechSynthesis" in window) {
+  // voices load asynchronously on iOS/Chrome — recompute when they arrive
+  window.speechSynthesis.onvoiceschanged = () => { _voice = pickFrenchFemaleVoice(); };
+  ensureVoice();
+}
+
 export function makeSpeak() {
   return (text: string, enabled: boolean) => {
     if (!enabled || typeof window === "undefined" || !("speechSynthesis" in window)) return;
     try {
       window.speechSynthesis.cancel();
+      ensureVoice();
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = "fr-FR"; u.rate = 1.05; u.pitch = 1;
+      u.lang = "fr-FR";
+      if (_voice) u.voice = _voice;
+      u.rate = 1.0; u.pitch = 1.06; // slightly softer/warmer than default
       window.speechSynthesis.speak(u);
     } catch { /* ignore */ }
   };
