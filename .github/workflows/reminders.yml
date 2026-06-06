@@ -1,0 +1,16 @@
+name: reminders-cron
+# Vercel Hobby crons run only once/day, so we ping the endpoint from GitHub Actions.
+on:
+  schedule:
+    - cron: "*/15 * * * *" # every 15 min (best-effort; may be delayed under load)
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger reminder check
+        run: |
+          curl -fsS -X POST "https://ventre-plat.vercel.app/api/cron" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -w "\nHTTP %{http_code}\n"
