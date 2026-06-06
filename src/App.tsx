@@ -709,8 +709,15 @@ function App() {
   const beepCount = (n: number) => beep(520, 0.09, settings.sound); // low countdown beep
   const beepGo = () => beep(900, 0.26, settings.sound);              // high/long transition beep
 
+  // Motivational coach lines — varied so it never feels robotic.
+  // pickCue rotates through the pool (deterministic-ish via round+exIndex) so two
+  // consecutive cues are rarely identical.
+  const HALF_CUES = ["On est à la moitié, lâche rien !", "Mi-parcours, accroche-toi !", "La moitié est faite, encore un effort !", "Pile au milieu, tu gères, continue !"];
+  const FINAL_CUES = ["Dernière ligne droite, donne tout !", "Presque fini, lâche rien !", "Termine fort, tu y es !", "Les derniers comptent, accroche-toi !"];
+  function pickCue(pool: string[]) { return pool[(round + exIndex) % pool.length]; }
+
   // one-shot voice cues per exercise (reset on each new exo); silent in the last 5s
-  const cuesRef = React.useRef<{ half?: boolean; near?: boolean }>({});
+  const cuesRef = React.useRef<{ half?: boolean; final?: boolean; near?: boolean }>({});
   const resetCues = () => { cuesRef.current = {}; };
   function maybeCue(prev: number) {
     if (!settings.voice || screen !== "workout" || prev <= 5) return;
@@ -719,10 +726,12 @@ function App() {
       const tgt = targetReps;
       const done = Math.floor((dur - prev) / (current.repCycle || 1.5));
       const remain = Math.max(0, tgt - done);
-      if (!cuesRef.current.half && prev <= Math.ceil(dur / 2)) { cuesRef.current.half = true; speak(`Moitié. Plus que ${remain}`, true); return; }
-      if (!cuesRef.current.near && remain <= 5 && remain > 0) { cuesRef.current.near = true; speak(`Plus que ${remain}`, true); return; }
+      if (!cuesRef.current.half && prev <= Math.ceil(dur / 2)) { cuesRef.current.half = true; speak(`${pickCue(HALF_CUES)} Plus que ${remain}.`, true); return; }
+      if (!cuesRef.current.near && remain <= 5 && remain > 0) { cuesRef.current.near = true; speak(`Plus que ${remain}, ${pickCue(FINAL_CUES).toLowerCase()}`, true); return; }
     } else {
-      if (!cuesRef.current.half && prev <= Math.ceil(dur / 2)) { cuesRef.current.half = true; speak("Moitié. Tiens la position", true); }
+      // hold/time exercises: halfway encouragement + a final-stretch push
+      if (!cuesRef.current.half && prev <= Math.ceil(dur / 2)) { cuesRef.current.half = true; speak(`${pickCue(HALF_CUES)} Tiens la position.`, true); return; }
+      if (!cuesRef.current.final && prev <= Math.max(6, Math.ceil(dur / 4))) { cuesRef.current.final = true; speak(pickCue(FINAL_CUES), true); }
     }
   }
 
