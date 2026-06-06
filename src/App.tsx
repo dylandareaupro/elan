@@ -7,7 +7,7 @@ import React from "react";
 import {
   EXERCISES, WEEKS, DEFAULT_SETTINGS, PALETTES, EX_TONE,
   storageGet, storageSet, calculateStreak, sessionsThisWeek, weekActivity, fmt,
-  makeSpeak, vibrate, beep,
+  makeSpeak, vibrate, beep, unlockAudio, requestWakeLock, releaseWakeLock,
   figureForName, exSlug, photoForName,
   getProfile, setProfile, getPlans, setPlans, getActivePlanId, setActivePlanId,
   type Plan, type Profile, type Session, type Settings, type Palette,
@@ -349,6 +349,48 @@ function RestScreen(c: any) {
   );
 }
 
+/* ============================== TRANSITION (between exercises) ============================== */
+function TransitionScreen(c: any) {
+  const { P, round, currentWeek, week, exIndex, exs, timeLeft, illustration, settings } = c;
+  const nextEx = exs[exIndex + 1] || exs[0];
+  const exPhoto = photoForName(nextEx.name);
+  const auto = settings.autoAdvance;
+  return (
+    <Shell P={P}>
+      <TopBar P={P}
+        left={<Pill P={P} tone="surface" icon="arrowR">Tour {round} / {currentWeek.rounds} · S{week}</Pill>}
+        right={<RoundBtn icon="x" P={P} label="Quitter" onClick={c.reset} />} />
+
+      <div style={{ marginBottom: 8 }}>
+        <SegBar P={P} total={exs.length} filledTo={exIndex + 1} current={exIndex + 1} color={P.primaryDeep} />
+      </div>
+
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center" }}>
+        <Eyebrow P={P} color={P.primaryDeep}>Prochain exercice</Eyebrow>
+        <h1 className="vp-display" style={{ margin: "8px 0 0", fontSize: 34, lineHeight: 1.0, color: P.ink }}>{nextEx.name}</h1>
+        <p style={{ margin: "8px 0 0", fontSize: 14, fontWeight: 600, color: P.text2, maxWidth: 240 }}>{nextEx.info}</p>
+
+        <div style={{ position: "relative", width: 200, height: 200, margin: "22px 0 0", borderRadius: 28, overflow: "hidden", background: exPhoto ? "#FFFFFF" : P.primarySoft, border: `1px solid ${P.border}` }}>
+          <div style={{ position: "absolute", inset: exPhoto ? "4%" : "12%" }}>
+            <ExerciseVisual ex={nextEx} P={P} illustration={illustration} fit="contain" />
+          </div>
+        </div>
+
+        {auto && (
+          <div className="mono" style={{ marginTop: 22, fontSize: 64, fontWeight: 800, letterSpacing: "-0.04em", color: P.primaryDeep, lineHeight: 1 }}>
+            {Math.max(0, timeLeft)}
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+        <GhostBtn P={P} onClick={c.reset} icon="x" />
+        <CTA P={P} ctaStyle="peach" icon="play" onClick={c.handleNext}>{auto ? "Commencer maintenant" : "Commencer"}</CTA>
+      </div>
+    </Shell>
+  );
+}
+
 /* ============================== DONE ============================== */
 function DoneScreen(c: any) {
   const { P, streak, week, elapsed, currentWeek, exs, ctaStyle } = c;
@@ -550,6 +592,10 @@ function SettingsScreen(c: any) {
           <Toggle P={P} icon="volume" label="Voice coach" value={settings.voice} onChange={(v: boolean) => c.setSetting("voice", v)} />
           <Toggle P={P} icon={settings.sound ? "volume" : "volumeX"} label="Bips sonores" value={settings.sound} onChange={(v: boolean) => c.setSetting("sound", v)} />
           <Toggle P={P} icon="vibrate" label="Vibrations" value={settings.vibration} onChange={(v: boolean) => c.setSetting("vibration", v)} />
+          <Toggle P={P} icon="refresh" label="Enchaînement auto" value={settings.autoAdvance} onChange={(v: boolean) => c.setSetting("autoAdvance", v)} />
+          <p style={{ fontSize: 12, color: P.muted, margin: "-2px 4px 0", lineHeight: 1.45 }}>
+            Auto : les exercices s'enchaînent après une pause de 3 s. Désactive pour lancer chaque exercice à la main.
+          </p>
         </div>
 
         {/* in-app appearance (replaces the prototype Tweaks panel) */}
@@ -658,35 +704,93 @@ function App() {
     return "Fin";
   };
 
-  const nextRef = React.useRef<() => void>(() => {});
+  // beep palette: 3 short low beeps (3-2-1) + 1 higher/longer beep at 0
+  const TRANSITION_SECS = 3;
+  const beepCount = (n: number) => beep(520, 0.09, settings.sound); // low countdown beep
+  const beepGo = () => beep(900, 0.26, settings.sound);              // high/long transition beep
+
+  // one-shot voice cues per exercise (reset on each new exo); silent in the last 5s
+  const cuesRef = React.useRef<{ half?: boolean; near?: boolean }>({});
+  const resetCues = () => { cuesRef.current = {}; };
+  function maybeCue(prev: number) {
+    if (!settings.voice || screen !== "workout" || prev <= 5) return;
+    const dur = currentWeek.duration;
+    if (current?.type === "reps") {
+      const tgt = targetReps;
+      const done = Math.floor((dur - prev) / (current.repCycle || 1.5));
+      const remain = Math.max(0, tgt - done);
+      if (!cuesRef.current.half && prev <= Math.ceil(dur / 2)) { cuesRef.current.half = true; speak(`Moitié. Plus que ${remain}`, true); return; }
+      if (!cuesRef.current.near && remain <= 5 && remain > 0) { cuesRef.current.near = true; speak(`Plus que ${remain}`, true); return; }
+    } else {
+      if (!cuesRef.current.half && prev <= Math.ceil(dur / 2)) { cuesRef.current.half = true; speak("Moitié. Tiens la position", true); }
+    }
+  }
+
+  // Tick: only decrement the clock. Beeps/cues/advancing live in the effect below,
+  // so we never mutate other state from inside a setTimeLeft updater (that race
+  // was collapsing the rest + transition periods to a single frame).
   React.useEffect(() => {
-    if (screen !== "workout" && screen !== "rest") return;
-    if (paused) return;
+    const ticking = screen === "workout" || screen === "rest" || (screen === "transition" && settings.autoAdvance);
+    if (!ticking || paused) return;
     const tmr = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) { nextRef.current(); return 0; }
-        if (prev <= 4) { beep(660, 0.08, settings.sound); vibrate(30, settings.vibration); }
-        return prev - 1;
-      });
+      setTimeLeft((prev) => Math.max(0, prev - 1));
       setElapsed((e) => e + 1);
       if (screen === "workout") setExElapsed((e) => e + 1);
     }, 1000);
     return () => clearInterval(tmr);
-  }, [screen, paused, exIndex, round, settings.sound, settings.vibration]);
+  }, [screen, paused, settings.autoAdvance]);
+
+  // React to the clock: countdown beeps (3-2-1), voice cues, and advancing at 0.
+  const nextRef = React.useRef<() => void>(() => {});
+  React.useEffect(() => {
+    if (paused) return;
+    if (screen === "workout" || screen === "rest") {
+      if (timeLeft > 0 && timeLeft <= TRANSITION_SECS) { beepCount(timeLeft); vibrate(30, settings.vibration); }
+      if (timeLeft > 0) maybeCue(timeLeft);
+    }
+    const canAdvance = screen === "workout" || screen === "rest" || (screen === "transition" && settings.autoAdvance);
+    if (timeLeft === 0 && canAdvance) nextRef.current();
+  }, [timeLeft, screen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // keep the screen awake during a session; re-acquire when the tab returns to foreground
+  React.useEffect(() => {
+    const active = screen === "workout" || screen === "rest" || screen === "transition";
+    if (!active) { releaseWakeLock(); return; }
+    requestWakeLock();
+    const onVis = () => { if (document.visibilityState === "visible") requestWakeLock(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { document.removeEventListener("visibilitychange", onVis); releaseWakeLock(); };
+  }, [screen]);
 
   function startSession() {
+    unlockAudio(); // must run inside this tap so audio/voice work for the whole session
+    resetCues();
     setScreen("workout"); setRound(1); setExIndex(0); setTimeLeft(currentWeek.duration);
     setElapsed(0); setExElapsed(0); setPaused(false); setSessionStart(new Date().toISOString());
-    beep(1200, 0.18, settings.sound); vibrate(80, settings.vibration); speak(`Tour 1. ${EXS[0].name}`, settings.voice);
+    beepGo(); vibrate(80, settings.vibration); speak(`Tour 1. ${EXS[0].name}`, settings.voice);
   }
   function handleNext() {
-    beep(1040, 0.15, settings.sound); vibrate([60, 30, 60], settings.vibration);
     if (screen === "workout") {
-      if (exIndex < EXS.length - 1) { const n = exIndex + 1; setExIndex(n); setTimeLeft(currentWeek.duration); setExElapsed(0); speak(EXS[n].name, settings.voice); }
-      else if (round < currentWeek.rounds) { setScreen("rest"); setTimeLeft(currentWeek.rest); speak("Repos", settings.voice); }
-      else { finishSession(); }
+      // exercise finished
+      beepGo(); vibrate([60, 30, 60], settings.vibration);
+      if (exIndex < EXS.length - 1) {
+        // 3s transition before the next exercise (auto-advances unless Manuel)
+        setScreen("transition"); setTimeLeft(settings.autoAdvance ? TRANSITION_SECS : 0);
+        speak(`Prochain. ${EXS[exIndex + 1].name}`, settings.voice);
+      } else if (round < currentWeek.rounds) {
+        setScreen("rest"); setTimeLeft(currentWeek.rest); speak("Repos", settings.voice);
+      } else { finishSession(); }
+    } else if (screen === "transition") {
+      // start the queued exercise
+      const n = exIndex + 1; resetCues();
+      setExIndex(n); setExElapsed(0); setTimeLeft(currentWeek.duration); setScreen("workout");
+      speak("C'est parti", settings.voice);
     } else if (screen === "rest") {
-      const nr = round + 1; setRound(nr); setExIndex(0); setTimeLeft(currentWeek.duration); setExElapsed(0); setScreen("workout"); speak(`Tour ${nr}. ${EXS[0].name}`, settings.voice);
+      // rest finished → first exercise of the next round
+      beepGo(); vibrate([60, 30, 60], settings.vibration);
+      const nr = round + 1; resetCues();
+      setRound(nr); setExIndex(0); setTimeLeft(currentWeek.duration); setExElapsed(0); setScreen("workout");
+      speak(`Tour ${nr}. ${EXS[0].name}`, settings.voice);
     }
   }
   nextRef.current = handleNext;
@@ -748,6 +852,7 @@ function App() {
 
   let Screen = HomeScreen;
   if (screen === "workout") Screen = WorkoutScreen;
+  else if (screen === "transition") Screen = TransitionScreen;
   else if (screen === "rest") Screen = RestScreen;
   else if (screen === "done") Screen = DoneScreen;
   else if (screen === "history") Screen = HistoryScreen;

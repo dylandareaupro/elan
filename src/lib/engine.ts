@@ -52,6 +52,7 @@ export interface Settings {
   voice: boolean;
   vibration: boolean;
   sound: boolean;
+  autoAdvance: boolean;
   currentWeek: number;
 }
 export type Palette = Record<string, string>;
@@ -74,7 +75,7 @@ export const WEEKS: WeekSpec[] = [
   { week: 4, duration: 45, rest: 20, rounds: 3, label: "Performance" },
 ];
 
-export const DEFAULT_SETTINGS: Settings = { voice: true, vibration: true, sound: true, currentWeek: 1 };
+export const DEFAULT_SETTINGS: Settings = { voice: true, vibration: true, sound: true, autoAdvance: true, currentWeek: 1 };
 
 /* ---------- Palettes ---------- */
 export const PALETTES: Record<string, Palette> = {
@@ -201,6 +202,36 @@ export function beep(freq: number, dur: number, enabled: boolean) {
     gain.gain.linearRampToValueAtTime(0, ctx.currentTime + dur);
     osc.start(); osc.stop(ctx.currentTime + dur);
   } catch { /* ignore */ }
+}
+
+/* ---------- Audio unlock (must run inside a user gesture, e.g. "Démarrer") ----------
+   iOS only allows audio + speechSynthesis after a tap. We create/resume the
+   AudioContext and prime the speech engine so beeps & voice fire reliably later. */
+export function unlockAudio() {
+  try {
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    if (_audioCtx.state === "suspended") _audioCtx.resume();
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      const u = new SpeechSynthesisUtterance(" ");
+      u.volume = 0; window.speechSynthesis.speak(u);
+    }
+  } catch { /* ignore */ }
+}
+
+/* ---------- Wake Lock (keep the screen awake during a session) ----------
+   On iOS the timer + audio die when the screen locks. Hold a screen wake lock
+   for the duration of the workout and re-acquire it when the tab becomes visible. */
+let _wakeLock: any = null;
+export async function requestWakeLock() {
+  try {
+    if (typeof navigator !== "undefined" && "wakeLock" in navigator) {
+      _wakeLock = await (navigator as any).wakeLock.request("screen");
+    }
+  } catch { /* ignore (denied or unsupported) */ }
+}
+export function releaseWakeLock() {
+  try { _wakeLock?.release?.(); } catch { /* ignore */ }
+  _wakeLock = null;
 }
 
 /* ============================================================
