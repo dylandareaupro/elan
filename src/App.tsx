@@ -793,7 +793,7 @@ function App() {
       // start the queued exercise
       const n = exIndex + 1; resetCues();
       setExIndex(n); setExElapsed(0); setTimeLeft(currentWeek.duration); setScreen("workout");
-      speak("C'est parti", settings.voice);
+      speak(`C'est parti. ${EXS[n].name}`, settings.voice);
     } else if (screen === "rest") {
       // rest finished → first exercise of the next round
       beepGo(); vibrate([60, 30, 60], settings.vibration);
