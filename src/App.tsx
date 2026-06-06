@@ -704,8 +704,9 @@ function App() {
     return "Fin";
   };
 
-  // beep palette: 3 short low beeps (3-2-1) + 1 higher/longer beep at 0
-  const TRANSITION_SECS = 3;
+  // beep palette: 5 short low beeps (5-4-3-2-1) + 1 higher/longer beep at 0
+  const COUNTDOWN_SECS = 5; // how many end-of-exercise beeps
+  const TRANSITION_SECS = 3; // gap between exercises in auto mode
   const beepCount = (n: number) => beep(520, 0.09, settings.sound); // low countdown beep
   const beepGo = () => beep(900, 0.26, settings.sound);              // high/long transition beep
 
@@ -717,21 +718,27 @@ function App() {
   function pickCue(pool: string[]) { return pool[(round + exIndex) % pool.length]; }
 
   // one-shot voice cues per exercise (reset on each new exo); silent in the last 5s
-  const cuesRef = React.useRef<{ half?: boolean; final?: boolean; near?: boolean }>({});
+  // (the last 5s belong to the countdown beeps). Cues are spread across the
+  // exercise — quarter / half / final stretch — for "spatialité dans le temps".
+  const cuesRef = React.useRef<{ q1?: boolean; half?: boolean; q3?: boolean; ten?: boolean }>({});
   const resetCues = () => { cuesRef.current = {}; };
   function maybeCue(prev: number) {
     if (!settings.voice || screen !== "workout" || prev <= 5) return;
     const dur = currentWeek.duration;
+    const C = cuesRef.current;
     if (current?.type === "reps") {
       const tgt = targetReps;
       const done = Math.floor((dur - prev) / (current.repCycle || 1.5));
       const remain = Math.max(0, tgt - done);
-      if (!cuesRef.current.half && prev <= Math.ceil(dur / 2)) { cuesRef.current.half = true; speak(`${pickCue(HALF_CUES)} Plus que ${remain}.`, true); return; }
-      if (!cuesRef.current.near && remain <= 5 && remain > 0) { cuesRef.current.near = true; speak(`Plus que ${remain}, ${pickCue(FINAL_CUES).toLowerCase()}`, true); return; }
+      // announce the rep count at each marker so it's easy to track by ear
+      if (!C.q1 && tgt >= 12 && prev <= Math.ceil(dur * 0.75)) { C.q1 = true; speak(`Bien parti. Plus que ${remain} répétitions.`, true); return; }
+      if (!C.half && prev <= Math.ceil(dur / 2)) { C.half = true; speak(`${pickCue(HALF_CUES)} Plus que ${remain} répétitions.`, true); return; }
+      if (!C.q3 && remain > 5 && prev <= Math.ceil(dur / 4)) { C.q3 = true; speak(`Plus que ${remain}, ${pickCue(FINAL_CUES).toLowerCase()}`, true); return; }
     } else {
-      // hold/time exercises: halfway encouragement + a final-stretch push
-      if (!cuesRef.current.half && prev <= Math.ceil(dur / 2)) { cuesRef.current.half = true; speak(`${pickCue(HALF_CUES)} Tiens la position.`, true); return; }
-      if (!cuesRef.current.final && prev <= Math.max(6, Math.ceil(dur / 4))) { cuesRef.current.final = true; speak(pickCue(FINAL_CUES), true); }
+      // hold/time exercises: rhythm anchor → halfway → final 10s push
+      if (!C.q1 && dur >= 28 && prev <= Math.ceil(dur * 0.75)) { C.q1 = true; speak("C'est parti, trouve ton rythme.", true); return; }
+      if (!C.half && prev <= Math.ceil(dur / 2)) { C.half = true; speak(`${pickCue(HALF_CUES)} Tiens la position.`, true); return; }
+      if (!C.ten && dur >= 24 && prev <= 10) { C.ten = true; speak("Plus que dix secondes, lâche rien !", true); return; }
     }
   }
 
@@ -754,7 +761,7 @@ function App() {
   React.useEffect(() => {
     if (paused) return;
     if (screen === "workout" || screen === "rest") {
-      if (timeLeft > 0 && timeLeft <= TRANSITION_SECS) { beepCount(timeLeft); vibrate(30, settings.vibration); }
+      if (timeLeft > 0 && timeLeft <= COUNTDOWN_SECS) { beepCount(timeLeft); vibrate(30, settings.vibration); }
       if (timeLeft > 0) maybeCue(timeLeft);
     }
     const canAdvance = screen === "workout" || screen === "rest" || (screen === "transition" && settings.autoAdvance);
