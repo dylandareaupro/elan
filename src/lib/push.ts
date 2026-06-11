@@ -61,6 +61,44 @@ export async function enableReminders(rem: Reminder): Promise<void> {
   if (!res.ok) throw new Error("server");
 }
 
+// Varied celebration messages shown locally right after a finished workout.
+const CELEBRATE: { title: string; body: string }[] = [
+  { title: "Séance terminée 🏆", body: "Bien joué ! Une de plus vers ton objectif." },
+  { title: "Bravo ! 🔥", body: "Tu as tenu ta promesse. Continue comme ça." },
+  { title: "C'est dans la poche ✅", body: "Encore une séance au compteur. Fier de toi !" },
+  { title: "Excellent 💪", body: "Chaque séance compte. Tu construis ton élan." },
+];
+
+// Show a local congratulation notification (no server / push needed).
+export async function celebrateWorkout(): Promise<void> {
+  if (!pushSupported() || Notification.permission !== "granted") return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const msg = CELEBRATE[Math.floor(Math.random() * CELEBRATE.length)];
+    await reg.showNotification(msg.title, {
+      body: msg.body,
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      tag: "elan-done",
+    });
+  } catch { /* ignore */ }
+}
+
+// Tell the backend a workout happened today, so the reminder/relance is skipped.
+export async function reportWorkout(): Promise<void> {
+  if (!pushSupported()) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) return; // reminders not enabled → nothing to track
+    await fetch("/api/done", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ endpoint: sub.endpoint }),
+    }).catch(() => {});
+  } catch { /* ignore */ }
+}
+
 export async function disableReminders(): Promise<void> {
   if (!pushSupported()) return;
   const reg = await navigator.serviceWorker.ready;

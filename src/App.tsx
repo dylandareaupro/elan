@@ -18,7 +18,7 @@ import { ImageSlot } from "./components/ImageSlot";
 import { IOSDevice } from "./components/IOSDevice";
 import { OnboardingFlow, CoachSheet } from "./components/coach/Coach";
 import { Splash } from "./components/Splash";
-import { enableReminders, disableReminders, pushSupported, isStandalone, type Reminder } from "./lib/push";
+import { enableReminders, disableReminders, celebrateWorkout, reportWorkout, pushSupported, isStandalone, type Reminder } from "./lib/push";
 import { AnimatePresence } from "framer-motion";
 import {
   RoundBtn, Eyebrow, IconBadge, Pill, CTA, GhostBtn, Card, WeekStrip,
@@ -894,6 +894,7 @@ function App() {
     const updated = [...sessions, session]; setSessions(updated); storageSet("sessions", updated);
     if (sessionsThisWeek(updated) >= 5 && week < 4) { const nw = week + 1; setWeekState(nw); setSettings((s) => ({ ...s, currentWeek: nw })); }
     setScreen("done"); beep(1400, 0.3, settings.sound); vibrate([100, 50, 100, 50, 200], settings.vibration); speak("Terminé. Bien joué.", settings.voice);
+    celebrateWorkout(); reportWorkout(); // local congrats + tell the backend (skips today's reminder/relance)
   }
   function reset() { setScreen("home"); setRound(1); setExIndex(0); setPaused(false); window.speechSynthesis && window.speechSynthesis.cancel(); }
   function setSetting(k: keyof Settings, v: any) { setSettings((s) => ({ ...s, [k]: v })); }
