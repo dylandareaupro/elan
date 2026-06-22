@@ -6,7 +6,9 @@ const KEY = "elan:tiktok";
 
 export default async function handler(req, res) {
   if (req.method === "GET") {
-    res.setHeader("Cache-Control", "public, max-age=1800, s-maxage=1800");
+    // Pas de cache CDN : la liste doit refléter le KV dès qu'un scrape la met à
+    // jour (sinon une réponse vide reste figée à l'edge). Lecture KV = négligeable.
+    res.setHeader("Cache-Control", "no-store");
     if (!redis) return res.status(200).json({ ids: [] });
     try {
       const ids = (await redis.get(KEY)) || [];
