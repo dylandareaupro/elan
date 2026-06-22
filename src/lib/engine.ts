@@ -53,6 +53,7 @@ export interface Settings {
   vibration: boolean;
   sound: boolean;
   autoAdvance: boolean;
+  distraction?: boolean; // TikTok pendant le gainage + musique pendant les reps
   currentWeek: number;
   reminderOn?: boolean;
   reminderDays?: string[]; // ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
@@ -78,7 +79,23 @@ export const WEEKS: WeekSpec[] = [
   { week: 4, duration: 45, rest: 20, rounds: 3, label: "Performance" },
 ];
 
-export const DEFAULT_SETTINGS: Settings = { voice: true, vibration: true, sound: true, autoAdvance: true, currentWeek: 1, reminderOn: false, reminderDays: ["Mon", "Wed", "Fri"], reminderTime: "18:00" };
+export const DEFAULT_SETTINGS: Settings = { voice: true, vibration: true, sound: true, autoAdvance: true, distraction: true, currentWeek: 1, reminderOn: false, reminderDays: ["Mon", "Wed", "Fri"], reminderTime: "18:00" };
+
+/* ---------- Divertissement pendant la séance ----------
+   Pendant les exos de gainage (type "time"), on affiche une vidéo TikTok ;
+   pendant les exos en répétitions, une musique de fond (public/music/seance.mp3).
+
+   👉 Colle ici tes vidéos TikTok : l'URL complète OU juste l'ID (les chiffres
+   après /video/). Liste vide = on garde l'illustration normale. */
+export const TIKTOK_HOLD_VIDEOS: string[] = [
+  // "https://www.tiktok.com/@compte/video/7301234567890123456",
+];
+export function tiktokId(v: string): string {
+  const m = v.match(/video\/(\d+)/);
+  return (m ? m[1] : v).replace(/\D/g, "");
+}
+export const tiktokIds = () => TIKTOK_HOLD_VIDEOS.map(tiktokId).filter(Boolean);
+export const WORKOUT_MUSIC_SRC = "/music/seance.mp3"; // dépose ton mp3 ici (libre de droits)
 
 /* ---------- Palettes ---------- */
 export const PALETTES: Record<string, Palette> = {
@@ -237,6 +254,32 @@ export function beep(freq: number, dur: number, enabled: boolean) {
     gain.gain.linearRampToValueAtTime(0.16, ctx.currentTime + 0.01);
     gain.gain.linearRampToValueAtTime(0, ctx.currentTime + dur);
     osc.start(); osc.stop(ctx.currentTime + dur);
+  } catch { /* ignore */ }
+}
+
+/* A short, satisfying ascending arpeggio + shimmer chord — played when a
+   whole session is finished (the "Terminé" screen). Synthesised so it needs
+   no audio asset and works offline. */
+export function successChime(enabled: boolean) {
+  if (!enabled) return;
+  try {
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const ctx = _audioCtx;
+    if (ctx.state === "suspended") ctx.resume();
+    const note = (f: number, t0: number, peak: number, len: number, type: OscillatorType) => {
+      const osc = ctx.createOscillator(); const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = type; osc.frequency.value = f;
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.linearRampToValueAtTime(peak, t0 + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + len);
+      osc.start(t0); osc.stop(t0 + len + 0.05);
+    };
+    const t = ctx.currentTime;
+    const arp = [523.25, 659.25, 783.99, 1046.5]; // C5 E5 G5 C6
+    arp.forEach((f, i) => note(f, t + i * 0.12, 0.18, 0.5, "triangle"));
+    const t1 = t + arp.length * 0.12;
+    [523.25, 659.25, 783.99, 1046.5].forEach((f) => note(f, t1, 0.11, 1.1, "sine")); // resolving chord
   } catch { /* ignore */ }
 }
 

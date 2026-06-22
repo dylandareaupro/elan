@@ -7,7 +7,8 @@ import React from "react";
 import {
   EXERCISES, WEEKS, DEFAULT_SETTINGS, PALETTES, EX_TONE,
   storageGet, storageSet, calculateStreak, sessionsThisWeek, weekActivity, fmt,
-  makeSpeak, vibrate, beep, unlockAudio, requestWakeLock, releaseWakeLock,
+  makeSpeak, vibrate, beep, successChime, unlockAudio, requestWakeLock, releaseWakeLock,
+  tiktokIds, WORKOUT_MUSIC_SRC,
   figureForName, exSlug, photoForName,
   getProfile, setProfile, getPlans, setPlans, getActivePlanId, setActivePlanId,
   type Plan, type Profile, type Session, type Settings, type Palette,
@@ -250,14 +251,29 @@ function ProgramsScreen(c: any) {
   );
 }
 
+/* TikTok player shown during gainage (hold) exercises. Online-only; the parent
+   only mounts it when there are video ids, so offline we fall back to the figure.
+   A new clip is picked per exercise (keyed by exIndex). */
+function HoldTikTok({ ids, exIndex }: { ids: string[]; exIndex: number }) {
+  const id = ids[exIndex % ids.length];
+  const src = `https://www.tiktok.com/player/v1/${id}?autoplay=1&loop=1&controls=1&description=0&music_info=0&rel=0`;
+  return (
+    <iframe key={id} src={src} title="TikTok" allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0, background: "#000" }} />
+  );
+}
+
 /* ============================== WORKOUT ============================== */
 function WorkoutScreen(c: any) {
-  const { P, round, currentWeek, week, exIndex, current, exs, timeLeft, paused, progress, currentReps, targetReps, nextLabel, illustration } = c;
+  const { P, round, currentWeek, week, exIndex, current, exs, timeLeft, paused, progress, currentReps, targetReps, nextLabel, illustration, settings } = c;
   const tone = EX_TONE[exIndex % EX_TONE.length];
   const ringColor = P[TONE_DEEP[tone]];
   const last3 = timeLeft <= 3;
   const exPhoto = photoForName(current.name);
   const repPct = current.type === "reps" && targetReps ? currentReps / targetReps : 0;
+  const tkIds = tiktokIds();
+  const showTikTok = !!settings.distraction && current.type === "time" && tkIds.length > 0;
+  const onDark = showTikTok; // light text + scrim when a video fills the card
   return (
     <Shell P={P}>
       <TopBar P={P}
@@ -272,15 +288,19 @@ function WorkoutScreen(c: any) {
         <span style={{ fontSize: 12.5, fontWeight: 700, color: P.muted }}>{current.zone}</span>
       </div>
 
-      <div style={{ position: "relative", width: "100%", flex: 1, minHeight: 0, background: exPhoto ? "#FFFFFF" : P[EX_TONE[exIndex % EX_TONE.length] + "Soft"] || P.primarySoft, borderRadius: 30, overflow: "hidden", border: `1px solid ${P.border}`, boxShadow: "0 2px 4px rgba(20,18,12,0.05), 0 18px 40px rgba(20,18,12,0.08)" }}>
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(255,255,255,0.4), rgba(255,255,255,0) 38%)", zIndex: 1, pointerEvents: "none" }} />
-        <div style={{ position: "absolute", inset: exPhoto ? "2%" : "10% 8%", zIndex: 0 }}>
-          <ExerciseVisual ex={current} P={P} illustration={illustration} fit="contain" />
-        </div>
-        <div style={{ position: "absolute", top: 16, left: 16, right: 16, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, zIndex: 2 }}>
+      <div onClick={showTikTok ? undefined : c.togglePause} title={paused ? "Reprendre" : "Mettre en pause"} style={{ position: "relative", width: "100%", flex: 1, minHeight: 0, cursor: showTikTok ? "default" : "pointer", background: showTikTok ? "#000" : exPhoto ? "#FFFFFF" : P[EX_TONE[exIndex % EX_TONE.length] + "Soft"] || P.primarySoft, borderRadius: 30, overflow: "hidden", border: `1px solid ${P.border}`, boxShadow: "0 2px 4px rgba(20,18,12,0.05), 0 18px 40px rgba(20,18,12,0.08)" }}>
+        {showTikTok ? (
+          <HoldTikTok ids={tkIds} exIndex={exIndex} />
+        ) : (
+          <div style={{ position: "absolute", inset: exPhoto ? "2%" : "10% 8%", zIndex: 0 }}>
+            <ExerciseVisual ex={current} P={P} illustration={illustration} fit="contain" />
+          </div>
+        )}
+        <div style={{ position: "absolute", inset: 0, background: onDark ? "linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0) 32%)" : "linear-gradient(180deg, rgba(255,255,255,0.4), rgba(255,255,255,0) 38%)", zIndex: 1, pointerEvents: "none" }} />
+        <div style={{ position: "absolute", top: 16, left: 16, right: 16, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, zIndex: 2, pointerEvents: "none" }}>
           <div style={{ minWidth: 0 }}>
-            <h2 className="vp-display" style={{ margin: 0, fontSize: 26, lineHeight: 0.98, color: P.ink }}>{current.name}</h2>
-            <p style={{ margin: "5px 0 0", fontSize: 13, fontWeight: 600, color: P.text2, maxWidth: 200 }}>{current.info}</p>
+            <h2 className="vp-display" style={{ margin: 0, fontSize: 26, lineHeight: 0.98, color: onDark ? "#fff" : P.ink, textShadow: onDark ? "0 2px 10px rgba(0,0,0,0.5)" : "none" }}>{current.name}</h2>
+            <p style={{ margin: "5px 0 0", fontSize: 13, fontWeight: 600, color: onDark ? "rgba(255,255,255,0.85)" : P.text2, maxWidth: 200, textShadow: onDark ? "0 1px 6px rgba(0,0,0,0.5)" : "none" }}>{current.info}</p>
           </div>
           {paused && <Pill P={P} tone="ink" icon="pause" style={{ flexShrink: 0 }}>Pause</Pill>}
         </div>
@@ -291,6 +311,11 @@ function WorkoutScreen(c: any) {
               <span className="mono" style={{ fontSize: 17, fontWeight: 800 }}>{currentReps}<span style={{ opacity: 0.5 }}> / {targetReps}</span></span>
               <span style={{ fontSize: 12.5, fontWeight: 700, opacity: 0.7 }}>reps</span>
             </div>
+          </div>
+        )}
+        {timeLeft > 0 && last3 && !paused && (
+          <div style={{ position: "absolute", inset: 0, zIndex: 3, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.5)", backdropFilter: "blur(1.5px)", WebkitBackdropFilter: "blur(1.5px)" }}>
+            <div key={timeLeft} className="vp-count-pop mono" style={{ fontSize: 152, fontWeight: 800, lineHeight: 1, color: P.actionDeep, textShadow: "0 8px 28px rgba(20,18,12,0.22)" }}>{timeLeft}</div>
           </div>
         )}
       </div>
@@ -394,7 +419,7 @@ function TransitionScreen(c: any) {
 
 /* ============================== DONE ============================== */
 function DoneScreen(c: any) {
-  const { P, streak, week, elapsed, currentWeek, exs, ctaStyle } = c;
+  const { P, streak, week, elapsed, currentWeek, exs } = c;
   return (
     <Shell P={P}>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 22 }}>
@@ -431,8 +456,7 @@ function DoneScreen(c: any) {
         </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <CTA P={P} ctaStyle={ctaStyle} icon="refresh" onClick={c.startSession}>Refaire</CTA>
+      <div style={{ marginTop: 28 }}>
         <GhostBtn P={P} onClick={() => c.go("home")}>Retour accueil</GhostBtn>
       </div>
     </Shell>
@@ -673,6 +697,10 @@ function SettingsScreen(c: any) {
           <p style={{ fontSize: 12, color: P.muted, margin: "-2px 4px 0", lineHeight: 1.45 }}>
             Auto : les exercices s'enchaînent après une pause de 3 s. Désactive pour lancer chaque exercice à la main.
           </p>
+          <Toggle P={P} icon="play" label="Divertissement en séance" value={settings.distraction !== false} onChange={(v: boolean) => c.setSetting("distraction", v)} />
+          <p style={{ fontSize: 12, color: P.muted, margin: "-2px 4px 0", lineHeight: 1.45 }}>
+            TikTok pendant le gainage, musique pendant les répétitions (nécessite des liens TikTok + un mp3, voir notes dev).
+          </p>
         </div>
 
         <RemindersPanel P={P} settings={settings} setSetting={c.setSetting} />
@@ -783,8 +811,8 @@ function App() {
     return "Fin";
   };
 
-  // beep palette: 5 short low beeps (5-4-3-2-1) + 1 higher/longer beep at 0
-  const COUNTDOWN_SECS = 5; // how many end-of-exercise beeps
+  // beep palette: 3 short low beeps (3-2-1) + 1 higher/longer beep at 0
+  const COUNTDOWN_SECS = 3; // how many end-of-exercise beeps
   const TRANSITION_SECS = 3; // gap between exercises in auto mode
   const beepCount = (n: number) => beep(520, 0.09, settings.sound); // low countdown beep
   const beepGo = () => beep(900, 0.26, settings.sound);              // high/long transition beep
@@ -805,19 +833,16 @@ function App() {
     if (!settings.voice || screen !== "workout" || prev <= 5) return;
     const dur = currentWeek.duration;
     const C = cuesRef.current;
+    // Voix volontairement sobre : une seule relance en milieu d'exo (+ un
+    // dernier rappel à 10 s sur les exos tenus). Le reste, ce sont les bips.
     if (current?.type === "reps") {
       const tgt = targetReps;
       const done = Math.floor((dur - prev) / (current.repCycle || 1.5));
       const remain = Math.max(0, tgt - done);
-      // announce the rep count at each marker so it's easy to track by ear
-      if (!C.q1 && tgt >= 12 && prev <= Math.ceil(dur * 0.75)) { C.q1 = true; speak(`Bien parti. Plus que ${remain} répétitions.`, true); return; }
       if (!C.half && prev <= Math.ceil(dur / 2)) { C.half = true; speak(`${pickCue(HALF_CUES)} Plus que ${remain} répétitions.`, true); return; }
-      if (!C.q3 && remain > 5 && prev <= Math.ceil(dur / 4)) { C.q3 = true; speak(`Plus que ${remain}, ${pickCue(FINAL_CUES).toLowerCase()}`, true); return; }
     } else {
-      // hold/time exercises: rhythm anchor → halfway → final 10s push
-      if (!C.q1 && dur >= 28 && prev <= Math.ceil(dur * 0.75)) { C.q1 = true; speak("C'est parti, trouve ton rythme.", true); return; }
       if (!C.half && prev <= Math.ceil(dur / 2)) { C.half = true; speak(`${pickCue(HALF_CUES)} Tiens la position.`, true); return; }
-      if (!C.ten && dur >= 24 && prev <= 10) { C.ten = true; speak("Plus que dix secondes, lâche rien !", true); return; }
+      if (!C.ten && dur >= 24 && prev <= 10) { C.ten = true; speak(`Plus que dix secondes. ${pickCue(FINAL_CUES)}`, true); return; }
     }
   }
 
@@ -857,6 +882,16 @@ function App() {
     return () => { document.removeEventListener("visibilitychange", onVis); releaseWakeLock(); };
   }, [screen]);
 
+  // Background music during the rep-based exercises (the holds get TikTok instead).
+  // No-op if the mp3 asset isn't present — play() just rejects silently.
+  const musicRef = React.useRef<HTMLAudioElement>(null);
+  React.useEffect(() => {
+    const el = musicRef.current; if (!el) return;
+    const shouldPlay = !!settings.distraction && settings.sound && screen === "workout" && current?.type === "reps" && !paused;
+    if (shouldPlay) { el.volume = 0.45; el.play().catch(() => { /* asset missing or autoplay blocked */ }); }
+    else { try { el.pause(); } catch { /* ignore */ } }
+  }, [settings.distraction, settings.sound, screen, current?.type, exIndex, paused]);
+
   function startSession() {
     unlockAudio(); // must run inside this tap so audio/voice work for the whole session
     resetCues();
@@ -893,7 +928,7 @@ function App() {
     const session: Session = { date: sessionStart || new Date().toISOString(), week, duration: elapsed, rounds: currentWeek.rounds, exercises: EXS.length * currentWeek.rounds, plan: activePlan ? activePlan.title : undefined };
     const updated = [...sessions, session]; setSessions(updated); storageSet("sessions", updated);
     if (sessionsThisWeek(updated) >= 5 && week < 4) { const nw = week + 1; setWeekState(nw); setSettings((s) => ({ ...s, currentWeek: nw })); }
-    setScreen("done"); beep(1400, 0.3, settings.sound); vibrate([100, 50, 100, 50, 200], settings.vibration); speak("Terminé. Bien joué.", settings.voice);
+    setScreen("done"); successChime(settings.sound); vibrate([100, 50, 100, 50, 200], settings.vibration); speak("Terminé. Bien joué.", settings.voice);
     celebrateWorkout(); reportWorkout(); // local congrats + tell the backend (skips today's reminder/relance)
   }
   function reset() { setScreen("home"); setRound(1); setExIndex(0); setPaused(false); window.speechSynthesis && window.speechSynthesis.cancel(); }
@@ -967,6 +1002,7 @@ function App() {
           </div>
         ) : needOnboarding ? <OnboardingFlow P={P} onDone={adoptPlan} /> : <Screen {...ctx} />}
       </div>
+      <audio ref={musicRef} src={WORKOUT_MUSIC_SRC} loop preload="none" />
       {showNav && <BottomNav P={P} active={screen} onNav={(id: string) => ctx.go(id)} onStart={startSession} />}
       {showCoach && <CoachSheet P={P} profile={profile} plans={plans} onClose={() => setShowCoach(false)} onCreate={(plan: Plan) => adoptPlan(null, plan)} />}
     </div>
