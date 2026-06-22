@@ -95,7 +95,18 @@ export function tiktokId(v: string): string {
   return (m ? m[1] : v).replace(/\D/g, "");
 }
 export const tiktokIds = () => TIKTOK_HOLD_VIDEOS.map(tiktokId).filter(Boolean);
-export const WORKOUT_MUSIC_SRC = "/music/seance.mp3"; // dépose ton mp3 ici (libre de droits)
+
+/* Playlist de fond pendant les exos en répétitions. Morceaux instrumentaux
+   électroniques libres de droits (SoundHelix), hébergés de façon stable et
+   hotlinkables → ça marche sans déposer de fichier. Remplace par tes propres
+   pistes de sport si tu veux (mets des URL .mp3 hotlinkables ou /music/xxx.mp3). */
+export const WORKOUT_MUSIC: string[] = [
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3",
+];
 
 /* ---------- Palettes ---------- */
 export const PALETTES: Record<string, Palette> = {

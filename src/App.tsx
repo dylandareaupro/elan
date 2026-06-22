@@ -8,7 +8,7 @@ import {
   EXERCISES, WEEKS, DEFAULT_SETTINGS, PALETTES, EX_TONE,
   storageGet, storageSet, calculateStreak, sessionsThisWeek, weekActivity, fmt,
   makeSpeak, vibrate, beep, successChime, unlockAudio, requestWakeLock, releaseWakeLock,
-  tiktokIds, WORKOUT_MUSIC_SRC,
+  tiktokIds, WORKOUT_MUSIC,
   figureForName, exSlug, photoForName,
   getProfile, setProfile, getPlans, setPlans, getActivePlanId, setActivePlanId,
   type Plan, type Profile, type Session, type Settings, type Palette,
@@ -699,7 +699,7 @@ function SettingsScreen(c: any) {
           </p>
           <Toggle P={P} icon="play" label="Divertissement en séance" value={settings.distraction !== false} onChange={(v: boolean) => c.setSetting("distraction", v)} />
           <p style={{ fontSize: 12, color: P.muted, margin: "-2px 4px 0", lineHeight: 1.45 }}>
-            TikTok pendant le gainage, musique pendant les répétitions (nécessite des liens TikTok + un mp3, voir notes dev).
+            Musique rythmée pendant les répétitions, et vidéos TikTok pendant le gainage (ajoute tes liens TikTok pour activer cette partie).
           </p>
         </div>
 
@@ -883,14 +883,15 @@ function App() {
   }, [screen]);
 
   // Background music during the rep-based exercises (the holds get TikTok instead).
-  // No-op if the mp3 asset isn't present — play() just rejects silently.
+  // Rotates through the royalty-free playlist; no-op if the source can't load.
   const musicRef = React.useRef<HTMLAudioElement>(null);
+  const [trackIdx, setTrackIdx] = React.useState(0);
   React.useEffect(() => {
     const el = musicRef.current; if (!el) return;
     const shouldPlay = !!settings.distraction && settings.sound && screen === "workout" && current?.type === "reps" && !paused;
-    if (shouldPlay) { el.volume = 0.45; el.play().catch(() => { /* asset missing or autoplay blocked */ }); }
+    if (shouldPlay) { el.volume = 0.45; el.play().catch(() => { /* source unreachable or autoplay blocked */ }); }
     else { try { el.pause(); } catch { /* ignore */ } }
-  }, [settings.distraction, settings.sound, screen, current?.type, exIndex, paused]);
+  }, [settings.distraction, settings.sound, screen, current?.type, exIndex, paused, trackIdx]);
 
   function startSession() {
     unlockAudio(); // must run inside this tap so audio/voice work for the whole session
@@ -1002,7 +1003,7 @@ function App() {
           </div>
         ) : needOnboarding ? <OnboardingFlow P={P} onDone={adoptPlan} /> : <Screen {...ctx} />}
       </div>
-      <audio ref={musicRef} src={WORKOUT_MUSIC_SRC} loop preload="none" />
+      <audio ref={musicRef} src={WORKOUT_MUSIC[trackIdx % WORKOUT_MUSIC.length]} onEnded={() => setTrackIdx((i) => i + 1)} preload="none" />
       {showNav && <BottomNav P={P} active={screen} onNav={(id: string) => ctx.go(id)} onStart={startSession} />}
       {showCoach && <CoachSheet P={P} profile={profile} plans={plans} onClose={() => setShowCoach(false)} onCreate={(plan: Plan) => adoptPlan(null, plan)} />}
     </div>
