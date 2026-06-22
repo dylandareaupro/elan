@@ -8,7 +8,7 @@ import {
   EXERCISES, WEEKS, DEFAULT_SETTINGS, PALETTES, EX_TONE,
   storageGet, storageSet, calculateStreak, sessionsThisWeek, weekActivity, fmt,
   makeSpeak, vibrate, beep, successChime, unlockAudio, requestWakeLock, releaseWakeLock,
-  nextTikTokId, spotifyEmbed,
+  nextTikTokId, refreshTikTokPool, spotifyEmbed,
   figureForName, exSlug, photoForName,
   getProfile, setProfile, getPlans, setPlans, getActivePlanId, setActivePlanId,
   type Plan, type Profile, type Session, type Settings, type Palette,
@@ -762,6 +762,7 @@ function App() {
 
   React.useEffect(() => {
     document.documentElement.style.setProperty("--vp-display-font", "'Archivo'");
+    refreshTikTokPool(); // récupère la liste TikTok fraîche (cron hebdo) en arrière-plan
   }, []);
 
   const [settings, setSettings] = React.useState<Settings>(DEFAULT_SETTINGS);

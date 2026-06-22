@@ -121,7 +121,25 @@ export function tiktokId(v: string): string {
   const m = v.match(/video\/(\d+)/);
   return (m ? m[1] : v).replace(/\D/g, "");
 }
-export const tiktokIds = () => TIKTOK_HOLD_VIDEOS.map(tiktokId).filter(Boolean);
+
+// Liste live : rafraîchie chaque semaine côté serveur (cron GitHub Actions →
+// /api/tiktok → Upstash). On hydrate depuis le cache local au démarrage, puis
+// on remplace par la liste serveur. Fallback sur le snapshot embarqué.
+let _tiktokRuntime: string[] | null = storageGet<string[] | null>("tiktokPool", null);
+export const tiktokIds = () => (_tiktokRuntime && _tiktokRuntime.length ? _tiktokRuntime : TIKTOK_HOLD_VIDEOS).map(tiktokId).filter(Boolean);
+
+/* Va chercher la liste fraîche servie par /api/tiktok (alimentée par le cron
+   hebdo). Silencieux en cas d'échec / hors-ligne : on garde le cache ou le
+   snapshot embarqué. */
+export async function refreshTikTokPool(): Promise<void> {
+  try {
+    const r = await fetch("/api/tiktok", { headers: { accept: "application/json" } });
+    if (!r.ok) return;
+    const data = await r.json();
+    const ids = Array.isArray(data?.ids) ? data.ids.map(tiktokId).filter(Boolean) : [];
+    if (ids.length >= 10) { _tiktokRuntime = ids; storageSet("tiktokPool", ids); }
+  } catch { /* offline ou API absente : on garde ce qu'on a */ }
+}
 
 /* Renvoie l'ID TikTok suivant sans répétition : on mélange la liste une fois
    (Fisher-Yates), on avance un curseur persistant, et on re-mélange quand on a

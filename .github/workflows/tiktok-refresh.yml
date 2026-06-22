@@ -1,0 +1,25 @@
+name: tiktok-refresh
+# Re-scrape chaque semaine les TikToks drôles du moment et met à jour la liste
+# servie par /api/tiktok (stockée dans Upstash). Déclenchable à la main aussi.
+on:
+  schedule:
+    - cron: "17 4 * * 1" # tous les lundis à 04:17 UTC
+  workflow_dispatch: {}
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Playwright + Chromium
+        run: |
+          npm i playwright@1.48.2
+          npx playwright install --with-deps chromium
+      - name: Scrape & publish
+        run: node scripts/scrape-tiktok.mjs
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          TIKTOK_POST_URL: https://ventre-plat.vercel.app/api/tiktok
