@@ -96,17 +96,14 @@ export function tiktokId(v: string): string {
 }
 export const tiktokIds = () => TIKTOK_HOLD_VIDEOS.map(tiktokId).filter(Boolean);
 
-/* Playlist de fond pendant les exos en répétitions. Morceaux instrumentaux
-   électroniques libres de droits (SoundHelix), hébergés de façon stable et
-   hotlinkables → ça marche sans déposer de fichier. Remplace par tes propres
-   pistes de sport si tu veux (mets des URL .mp3 hotlinkables ou /music/xxx.mp3). */
-export const WORKOUT_MUSIC: string[] = [
-  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
-  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",
-  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3",
-];
+/* Musique pendant la séance : embed officiel Spotify (seul moyen légal de
+   diffuser de vrais tubes). Par défaut la playlist officielle "Top 50 - France"
+   (MAJ chaque semaine). Pour en mettre une autre, colle juste l'ID de playlist
+   (la partie après /playlist/ dans l'URL Spotify).
+   Note : extraits de 30 s sur un compte gratuit, titres complets en Premium. */
+export const SPOTIFY_PLAYLIST_ID = "37i9dQZEVXbIPWwFssbupI"; // Top 50 - France
+export const spotifyEmbed = (id = SPOTIFY_PLAYLIST_ID) =>
+  `https://open.spotify.com/embed/playlist/${id}?utm_source=generator&theme=0`;
 
 /* ---------- Palettes ---------- */
 export const PALETTES: Record<string, Palette> = {

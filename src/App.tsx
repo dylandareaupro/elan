@@ -8,7 +8,7 @@ import {
   EXERCISES, WEEKS, DEFAULT_SETTINGS, PALETTES, EX_TONE,
   storageGet, storageSet, calculateStreak, sessionsThisWeek, weekActivity, fmt,
   makeSpeak, vibrate, beep, successChime, unlockAudio, requestWakeLock, releaseWakeLock,
-  tiktokIds, WORKOUT_MUSIC,
+  tiktokIds, spotifyEmbed,
   figureForName, exSlug, photoForName,
   getProfile, setProfile, getPlans, setPlans, getActivePlanId, setActivePlanId,
   type Plan, type Profile, type Session, type Settings, type Palette,
@@ -699,7 +699,7 @@ function SettingsScreen(c: any) {
           </p>
           <Toggle P={P} icon="play" label="Divertissement en séance" value={settings.distraction !== false} onChange={(v: boolean) => c.setSetting("distraction", v)} />
           <p style={{ fontSize: 12, color: P.muted, margin: "-2px 4px 0", lineHeight: 1.45 }}>
-            Musique rythmée pendant les répétitions, et vidéos TikTok pendant le gainage (ajoute tes liens TikTok pour activer cette partie).
+            Lecteur Spotify « Top 50 France » pendant la séance (bouton vert), et vidéos TikTok pendant le gainage (ajoute tes liens TikTok pour activer cette partie).
           </p>
         </div>
 
@@ -882,16 +882,11 @@ function App() {
     return () => { document.removeEventListener("visibilitychange", onVis); releaseWakeLock(); };
   }, [screen]);
 
-  // Background music during the rep-based exercises (the holds get TikTok instead).
-  // Rotates through the royalty-free playlist; no-op if the source can't load.
-  const musicRef = React.useRef<HTMLAudioElement>(null);
-  const [trackIdx, setTrackIdx] = React.useState(0);
-  React.useEffect(() => {
-    const el = musicRef.current; if (!el) return;
-    const shouldPlay = !!settings.distraction && settings.sound && screen === "workout" && current?.type === "reps" && !paused;
-    if (shouldPlay) { el.volume = 0.45; el.play().catch(() => { /* source unreachable or autoplay blocked */ }); }
-    else { try { el.pause(); } catch { /* ignore */ } }
-  }, [settings.distraction, settings.sound, screen, current?.type, exIndex, paused, trackIdx]);
+  // Spotify mini-player shown during a session (legal way to stream real hits).
+  // The iframe stays mounted while the session is active so playback survives
+  // screen changes; "collapse" just slides the panel off-screen.
+  const sessionActive = screen === "workout" || screen === "rest" || screen === "transition";
+  const [musicOpen, setMusicOpen] = React.useState(false);
 
   function startSession() {
     unlockAudio(); // must run inside this tap so audio/voice work for the whole session
@@ -1003,7 +998,23 @@ function App() {
           </div>
         ) : needOnboarding ? <OnboardingFlow P={P} onDone={adoptPlan} /> : <Screen {...ctx} />}
       </div>
-      <audio ref={musicRef} src={WORKOUT_MUSIC[trackIdx % WORKOUT_MUSIC.length]} onEnded={() => setTrackIdx((i) => i + 1)} preload="none" />
+      {sessionActive && settings.distraction !== false && (
+        <>
+          {!musicOpen && (
+            <button onClick={() => setMusicOpen(true)} aria-label="Musique" style={{ position: "absolute", right: 16, bottom: 92, zIndex: 75, width: 46, height: 46, borderRadius: 9999, background: "#1DB954", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 22px rgba(29,185,84,0.45)", border: "none" }}>
+              <Icon name="volume" size={20} />
+            </button>
+          )}
+          {/* Panel stays mounted while the session is active → audio keeps playing when collapsed. */}
+          <div style={{ position: "absolute", left: 12, right: 12, bottom: 12, zIndex: 74, transform: musicOpen ? "translateY(0)" : "translateY(160%)", transition: "transform .32s cubic-bezier(.22,.61,.36,1)", background: P.surface, borderRadius: 22, border: `1px solid ${P.border}`, boxShadow: "0 18px 44px rgba(20,18,12,0.22)", overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px 6px" }}>
+              <span style={{ fontSize: 12.5, fontWeight: 800, letterSpacing: "-0.01em", color: P.ink }}>Musique · Top 50 France</span>
+              <button onClick={() => setMusicOpen(false)} aria-label="Réduire" style={{ width: 30, height: 30, borderRadius: 9999, background: P.tint, color: P.ink, display: "flex", alignItems: "center", justifyContent: "center", border: "none" }}><Icon name="x" size={16} /></button>
+            </div>
+            <iframe title="Spotify" src={spotifyEmbed()} allow="autoplay; encrypted-media; clipboard-write; fullscreen; picture-in-picture" loading="lazy" style={{ width: "100%", height: 152, border: 0, display: "block" }} />
+          </div>
+        </>
+      )}
       {showNav && <BottomNav P={P} active={screen} onNav={(id: string) => ctx.go(id)} onStart={startSession} />}
       {showCoach && <CoachSheet P={P} profile={profile} plans={plans} onClose={() => setShowCoach(false)} onCreate={(plan: Plan) => adoptPlan(null, plan)} />}
     </div>
