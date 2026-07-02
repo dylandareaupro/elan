@@ -11,24 +11,42 @@ import { dateKey, photoForName, figureForName, exSlug, type Exercise, type Palet
 export const CARD_SHADOW = "0 1px 2px rgba(20,18,12,0.03), 0 10px 30px rgba(20,18,12,0.05)";
 export const SOFT_SHADOW = "0 1px 2px rgba(20,18,12,0.04)";
 
-/* Unified exercise visual: official photo › drag-drop slot (photo mode) › line-art */
+/* Filename an exercise photo is looked up under. Drop a PNG named like this into
+   public/assets/exercises/ and it shows up automatically — no code change needed.
+   e.g. "Leg Raises" → "leg-raises.png", "World's Greatest" → "world-s-greatest.png". */
+export function photoFile(name = "") {
+  return exSlug(name).replace(/^vp-ex-/, "");
+}
+
+/* <img> that walks a list of candidate sources, falling back to the next one on
+   load error (missing file / non-image), and finally to `fallback`. This is what
+   makes "just drop a correctly-named image and it appears" work with zero wiring:
+   a dropped per-slug file wins, else the curated keyword photo, else line-art. */
+function ExercisePhoto({ srcs, alt, fit, fallback }: { srcs: string[]; alt: string; fit: "cover" | "contain"; fallback: React.ReactNode }) {
+  const key = srcs.join("|");
+  const [i, setI] = React.useState(0);
+  React.useEffect(() => { setI(0); }, [key]);
+  if (i >= srcs.length) return <>{fallback}</>;
+  return <img key={srcs[i]} src={srcs[i]} alt={alt} onError={() => setI((n) => n + 1)}
+    style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: fit, objectPosition: "center" }} />;
+}
+
+/* Unified exercise visual: dropped per-slug photo › curated keyword photo ›
+   drag-drop slot (photo mode) › line-art */
 export function ExerciseVisual({ ex, P, illustration, fit = "contain", slotShape = "rect", ghost, figPad = "8% 5%", placeholder = "" }: {
   ex: Exercise; P: Palette; illustration: string; fit?: "cover" | "contain"; slotShape?: "rect" | "circle"; ghost?: boolean; figPad?: string; placeholder?: string;
 }) {
-  const photo = photoForName(ex.name);
   const figId = figureForName(ex.name);
-  if (photo) {
-    return <img src={photo} alt={ex.name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: fit, objectPosition: "center" }} />;
-  }
-  if (illustration === "photo") {
-    return (
-      <>
-        {ghost && <div style={{ position: "absolute", inset: "10%", opacity: 0.14 }}><ExerciseFigure id={figId} color={P.figure} /></div>}
-        <ImageSlot id={exSlug(ex.name)} shape={slotShape} fit={fit} placeholder={placeholder} />
-      </>
-    );
-  }
-  return <div style={{ position: "absolute", inset: figPad }}><ExerciseFigure id={figId} color={P.figure} /></div>;
+  const fallback = illustration === "photo" ? (
+    <>
+      {ghost && <div style={{ position: "absolute", inset: "10%", opacity: 0.14 }}><ExerciseFigure id={figId} color={P.figure} /></div>}
+      <ImageSlot id={exSlug(ex.name)} shape={slotShape} fit={fit} placeholder={placeholder} />
+    </>
+  ) : (
+    <div style={{ position: "absolute", inset: figPad }}><ExerciseFigure id={figId} color={P.figure} /></div>
+  );
+  const srcs = [`/assets/exercises/${photoFile(ex.name)}.png`, photoForName(ex.name)].filter(Boolean) as string[];
+  return <ExercisePhoto srcs={srcs} alt={ex.name} fit={fit} fallback={fallback} />;
 }
 
 /* ---------- round icon button (white circle) ---------- */
