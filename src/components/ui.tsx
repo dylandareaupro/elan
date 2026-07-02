@@ -32,19 +32,12 @@ function ExercisePhoto({ srcs, alt, fit, fallback }: { srcs: string[]; alt: stri
 }
 
 /* Unified exercise visual: dropped per-slug photo › curated keyword photo ›
-   drag-drop slot (photo mode) › line-art */
+   line-art. When no image is found we always fall back to the line-art figure. */
 export function ExerciseVisual({ ex, P, illustration, fit = "contain", slotShape = "rect", ghost, figPad = "8% 5%", placeholder = "" }: {
   ex: Exercise; P: Palette; illustration: string; fit?: "cover" | "contain"; slotShape?: "rect" | "circle"; ghost?: boolean; figPad?: string; placeholder?: string;
 }) {
   const figId = figureForName(ex.name);
-  const fallback = illustration === "photo" ? (
-    <>
-      {ghost && <div style={{ position: "absolute", inset: "10%", opacity: 0.14 }}><ExerciseFigure id={figId} color={P.figure} /></div>}
-      <ImageSlot id={exSlug(ex.name)} shape={slotShape} fit={fit} placeholder={placeholder} />
-    </>
-  ) : (
-    <div style={{ position: "absolute", inset: figPad }}><ExerciseFigure id={figId} color={P.figure} /></div>
-  );
+  const fallback = <div style={{ position: "absolute", inset: figPad }}><ExerciseFigure id={figId} color={P.figure} /></div>;
   const srcs = [`/assets/exercises/${photoFile(ex.name)}.png`, photoForName(ex.name)].filter(Boolean) as string[];
   return <ExercisePhoto srcs={srcs} alt={ex.name} fit={fit} fallback={fallback} />;
 }
