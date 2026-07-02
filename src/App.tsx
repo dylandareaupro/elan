@@ -253,11 +253,33 @@ function ProgramsScreen(c: any) {
 
 /* TikTok player shown during gainage (hold) exercises. Online-only; the parent
    only mounts it when there are video ids, so offline we fall back to the figure.
-   A new clip is picked per exercise (keyed by exIndex). */
-function HoldTikTok({ videoId }: { videoId: string }) {
-  const src = `https://www.tiktok.com/player/v1/${videoId}?autoplay=1&loop=1&controls=1&description=0&music_info=0&rel=0`;
+   A new clip is picked per exercise (keyed by exIndex).
+   We drive it via the TikTok Embed Player API (postMessage): on ready we force
+   play + sound on (autoplay starts muted otherwise), and when a clip ends
+   (loop=0 → onStateChange value 0) we ask the parent for the next one so the
+   distraction keeps rolling until the gainage timer runs out. */
+function HoldTikTok({ videoId, onEnded }: { videoId: string; onEnded?: () => void }) {
+  const src = `https://www.tiktok.com/player/v1/${videoId}?autoplay=1&loop=0&controls=1&description=0&music_info=0&rel=0`;
+  const ref = React.useRef<HTMLIFrameElement>(null);
+  const endedRef = React.useRef(onEnded);
+  endedRef.current = onEnded;
+  React.useEffect(() => {
+    let done = false; // guard against the ended event firing more than once
+    const send = (type: string, value?: any) =>
+      ref.current?.contentWindow?.postMessage({ type, value, "x-tiktok-player": true }, "*");
+    function onMsg(e: MessageEvent) {
+      if (typeof e.origin === "string" && !e.origin.endsWith("tiktok.com")) return;
+      let d: any = e.data;
+      if (typeof d === "string") { try { d = JSON.parse(d); } catch { return; } }
+      if (!d || d["x-tiktok-player"] !== true) return;
+      if (d.type === "onPlayerReady") { send("play"); send("unMute"); }
+      if (d.type === "onStateChange" && d.value === 0 && !done) { done = true; endedRef.current?.(); }
+    }
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, [videoId]);
   return (
-    <iframe key={videoId} src={src} title="TikTok" allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+    <iframe ref={ref} key={videoId} src={src} title="TikTok" allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
       style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0, background: "#000" }} />
   );
 }
@@ -289,7 +311,7 @@ function WorkoutScreen(c: any) {
 
       <div onClick={showTikTok ? undefined : c.togglePause} title={paused ? "Reprendre" : "Mettre en pause"} style={{ position: "relative", width: "100%", flex: 1, minHeight: 0, cursor: showTikTok ? "default" : "pointer", background: showTikTok ? "#000" : exPhoto ? "#FFFFFF" : P[EX_TONE[exIndex % EX_TONE.length] + "Soft"] || P.primarySoft, borderRadius: 30, overflow: "hidden", border: `1px solid ${P.border}`, boxShadow: "0 2px 4px rgba(20,18,12,0.05), 0 18px 40px rgba(20,18,12,0.08)" }}>
         {showTikTok ? (
-          <HoldTikTok videoId={holdVideoId} />
+          <HoldTikTok videoId={holdVideoId} onEnded={c.onHoldEnded} />
         ) : (
           <div style={{ position: "absolute", inset: exPhoto ? "2%" : "10% 8%", zIndex: 0 }}>
             <ExerciseVisual ex={current} P={P} illustration={illustration} fit="contain" />
@@ -895,6 +917,8 @@ function App() {
       setHoldVideoId(nextTikTokId());
     }
   }, [screen, exIndex, round]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A clip finished before the gainage timer did → roll the next TikTok.
+  const onHoldEnded = React.useCallback(() => { setHoldVideoId(nextTikTokId()); }, []);
 
   function startSession() {
     unlockAudio(); // must run inside this tap so audio/voice work for the whole session
@@ -952,7 +976,7 @@ function App() {
   const ctx: any = {
     P, illustration, ctaStyle, calStyle, prefs, setPref, SOFT: SOFT_SHADOW,
     screen, week, round, exIndex, current, currentWeek, timeLeft, paused, progress,
-    totalSessionTime, streak, weekDone, currentReps, targetReps, nextLabel, settings, sessions, elapsed, holdVideoId,
+    totalSessionTime, streak, weekDone, currentReps, targetReps, nextLabel, settings, sessions, elapsed, holdVideoId, onHoldEnded,
     plan: activePlan, exs: EXS, profile, plans, freq: (profile && profile.frequency) || 4,
     go: (s: string) => { setScreen(s); window.speechSynthesis && window.speechSynthesis.cancel(); },
     startSession, handleNext, reset, togglePause: () => setPaused((p) => !p), setSetting, setWeek, resetHistory, share,
